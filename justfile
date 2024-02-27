@@ -8,7 +8,7 @@ build_all:
 
   just clusters_all
   just helm_all
-  just mesh
+  just mesh "false"
 
 clusters_all:
   #!/usr/bin/env bash
@@ -18,6 +18,11 @@ clusters_all:
     name=$(basename $file .yaml)
     index=$(echo $name | cut -d "-" -f 2)
     index=$((index))
+
+    if [[ $index -eq 4 ]]; then
+      continue
+    fi
+
     just cluster $name
   done
 
@@ -32,6 +37,11 @@ helm_all:
     name=$(basename $file .yaml)
     index=$(echo $name | cut -d "-" -f 2)
     index=$((index))
+
+    if [[ $index -eq 4 ]]; then
+      continue
+    fi
+
     just helm $name $index
   done
 
@@ -53,12 +63,14 @@ helm name id:
     --set cluster.name={{name}} \
     --set clustermesh.useAPIServer=true \
     --set clustermesh.apiserver.service.type=NodePort \
+    --set hubble.relay.enabled=true \
+    --set hubble.ui.enabled=true \
     --set image.pullPolicy=IfNotPresent \
     --set ipam.mode=kubernetes
 
   cilium status --context kind-{{name}} --wait
 
-mesh:
+mesh full="true":
   #!/usr/bin/env bash
   set -uexo pipefail
 
@@ -67,6 +79,10 @@ mesh:
     name=$(basename $file .yaml)
     index=$(echo $name | cut -d "-" -f 2)
     index=$((index - 1))
+
+    if [[ {{full}} -eq "false" ]] && [[ $index -eq 3 ]]; then
+      continue
+    fi
 
     ip=$(kubectl get pod --context kind-$name -n kube-system -l component=kube-apiserver -o 'jsonpath={.items[0].status.podIP}')
     args+=(
@@ -81,27 +97,17 @@ mesh:
     index=$(echo $name | cut -d "-" -f 2)
     index=$((index))
 
+    if [[ {{full}} -eq "false" ]] && [[ $index -eq 4 ]]; then
+      continue
+    fi
+
     helm upgrade cilium cilium/cilium --version 1.15.1 \
       --kube-context kind-$name \
       -n kube-system \
       --reuse-values \
-      --set clustermesh.config.enabled=true "${args[@]}"
+      --set clustermesh.config.enabled=true \
+      "${args[@]}"
   done
-
-connect name target:
-  #!/usr/bin/env bash
-  set -uexo pipefail
-
-  ip=$(kubectl get pod --context kind-{{target}} -n kube-system -l component=kube-apiserver -o 'jsonpath={.items[0].status.podIP}')
-
-  helm upgrade cilium cilium/cilium --version 1.15.1 \
-    --kube-context kind-{{name}} \
-    -n kube-system \
-    --reuse-values \
-    --set clustermesh.config.enabled=true \
-    --set clustermesh.config.clusters[0].name={{target}} \
-    --set clustermesh.config.clusters[0].ips[0]=${ip} \
-    --set clustermesh.config.clusters[0].port=32379
 
 delete:
   kind delete clusters -A
