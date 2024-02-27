@@ -80,7 +80,7 @@ mesh full="true":
     index=$(echo $name | cut -d "-" -f 2)
     index=$((index - 1))
 
-    if [[ {{full}} -eq "false" ]] && [[ $index -eq 3 ]]; then
+    if [[ "{{full}}" == "false" ]] && [[ $index -eq 3 ]]; then
       continue
     fi
 
@@ -97,7 +97,7 @@ mesh full="true":
     index=$(echo $name | cut -d "-" -f 2)
     index=$((index))
 
-    if [[ {{full}} -eq "false" ]] && [[ $index -eq 4 ]]; then
+    if [[ {{full}} == "false" ]] && [[ $index -eq 4 ]]; then
       continue
     fi
 
